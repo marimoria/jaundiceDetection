@@ -31,9 +31,9 @@ def setup_session():
     global HF_REPO_ID, DATA_DIR
     separator("SETUP SESSION")
 
-    print("  Enter HuggingFace Repository ID (e.g. mariaamandadevina/jaundice-neojaundice)")
+    print("  Enter HuggingFace Repository ID (e.g. Gamma-Fest-2026/jaundice-neojaundice)")
     repo = input("  Repo ID: ").strip()
-    HF_REPO_ID = repo if repo else "mariaamandadevina/jaundice-neojaundice"
+    HF_REPO_ID = repo if repo else "Gamma-Fest-2026/jaundice-neojaundice"
 
     print("\n  Select local data directory:")
     print(f"  1. NJN Dataset   ({DEFAULT_NJN})")
