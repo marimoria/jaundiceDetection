@@ -65,8 +65,8 @@ def xyz_to_lab(X: float, Y: float, Z: float) -> tuple[float, float, float]:
     Returns
     -------
     L* : float  Perceptual lightness [0, 100]
-    a* : float  Green–red axis (negative = green, positive = red)
-    b* : float  Blue–yellow axis (negative = blue, positive = yellow)
+    a* : float  Green-red axis (negative = green, positive = red)
+    b* : float  Blue-yellow axis (negative = blue, positive = yellow)
                 b* is the strongest single jaundice indicator.
     """
     # D65 reference white
