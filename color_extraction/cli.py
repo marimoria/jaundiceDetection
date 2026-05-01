@@ -87,15 +87,45 @@ def run_training_pipeline(args: argparse.Namespace, log: logging.Logger) -> None
 
 def run_single_image_debug(args: argparse.Namespace, log: logging.Logger) -> None:
     from .image_processor import process_single_image
+    import cv2
+    import os
+    from pathlib import Path
+    from .augmentation import generate_brightness_augmented_variants
 
     log.info(f"Mode: SINGLE IMAGE DEBUG — {args.image}")
+    
+    # 1. Process the original image
     row = process_single_image(args.image, debug=True, debug_dir=args.debug_dir)
 
-    log.info("\n── Extracted features ──────────────────────────────────")
+    log.info("\n── Extracted features (Original) ───────────────────────")
     for k, v in row.items():
         if k not in ("patient_id", "image_idx", "is_augmented"):
             log.info(f"  {k:<16} {v}")
     log.info("────────────────────────────────────────────────────────")
+
+    # 2. Process augmented variants if the flag is provided
+    if getattr(args, "augment", False):
+        log.info("\nMode: SINGLE IMAGE DEBUG — AUGMENTED VARIANTS")
+        
+        raw_bgr = cv2.imread(args.image)
+        variants = generate_brightness_augmented_variants(raw_bgr, n_variants=3) # type: ignore
+        
+        stem = Path(args.image).stem
+        ext = Path(args.image).suffix
+        os.makedirs(args.debug_dir, exist_ok=True)
+
+        for i, aug_bgr in enumerate(variants):
+            # Save the in-memory variant to disk temporarily so the visualizer can read it
+            temp_path = os.path.join(args.debug_dir, f"{stem}_aug{i}{ext}")
+            cv2.imwrite(temp_path, aug_bgr)
+
+            aug_row = process_single_image(temp_path, debug=True, debug_dir=args.debug_dir)
+            
+            log.info(f"\n── Extracted features (Augment {i}) ────────────────────")
+            for k, v in aug_row.items():
+                if k not in ("patient_id", "image_idx", "is_augmented"):
+                    log.info(f"  {k:<16} {v}")
+            log.info("────────────────────────────────────────────────────────")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -166,6 +196,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
     debug_p.add_argument(
         "--log_file", metavar="PATH",
         help="Optional path to write the full log as a .txt file.",
+    )
+    # Add this new flag:
+    debug_p.add_argument(
+        "--augment", action="store_true",
+        help="Also generate, debug, and save brightness-augmented variants.",
     )
 
     return parser
