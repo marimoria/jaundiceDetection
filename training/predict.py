@@ -14,7 +14,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
-MODELS_DIR    = "models"
+MODELS_DIR    = "__models__"
 SEV_THRESHOLD = 15.0
 
 def load_model(name):
@@ -119,6 +119,12 @@ if __name__ == "__main__":
         postnatal_age_days=3,
         weight=2800,
     )
+
+    """
+    result = predict_patient(
+      zone_features=sample_zones
+    )
+    """
 
     print("\n═══ PREDICTION RESULT ═══")
     for k, v in result.items():
