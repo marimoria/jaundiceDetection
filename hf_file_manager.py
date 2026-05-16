@@ -9,15 +9,12 @@ from huggingface_hub.errors import RepositoryNotFoundError
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
-
-DEFAULT_NJN = Path(os.getenv("DATA_NJN_DIR", str(BASE_DIR / "__data__" / "njn")))
-DEFAULT_JAMIA = Path(os.getenv("DATA_JAMIA_DIR", str(BASE_DIR / "__data__" / "jamia")))
 DEFAULT_NEO = Path(os.getenv("DATA_NEO_DIR", str(BASE_DIR / "__data__" / "neo")))
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 HF_REPO_TYPE = "dataset"
 HF_REPO_ID = ""
-DATA_DIR: Path = DEFAULT_NJN
+DATA_DIR: Path = DEFAULT_NEO
 
 def separator(title=""):
     if title:
@@ -36,20 +33,14 @@ def setup_session():
     HF_REPO_ID = repo if repo else "Gamma-Fest-2026/jaundice-neojaundice"
 
     print("\n  Select local data directory:")
-    print(f"  1. NJN Dataset   ({DEFAULT_NJN})")
-    print(f"  2. JAMIA Dataset ({DEFAULT_JAMIA})")
-    print(f"  3. NEO Dataset   ({DEFAULT_NEO})")
-    print("  4. Custom Path")
+    print(f"  1. NEO Dataset   ({DEFAULT_NEO})")
+    print("  2. Custom Path")
     
     dir_choice = input("  Choice [1-4]: ").strip()
     
     if dir_choice == "1":
-        DATA_DIR = DEFAULT_NJN
-    elif dir_choice == "2":
-        DATA_DIR = DEFAULT_JAMIA
-    elif dir_choice == "3":
         DATA_DIR = DEFAULT_NEO
-    else:
+    elif dir_choice == '2':
         custom = input("  Enter full path to directory: ").strip()
         DATA_DIR = Path(custom)
 
