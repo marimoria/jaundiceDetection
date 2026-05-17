@@ -1,6 +1,5 @@
 """
-color_extraction
-================
+init.py
 Neonatal jaundice color feature extraction package.
 
 Public surface
@@ -44,21 +43,15 @@ from .dataset_pipeline import (
 )
 
 __all__ = [
-    # color_math
     "rgb_to_hsl",
     "rgb_to_lab",
-    # skin_mask
     "build_neonatal_skin_mask",
     "extract_valid_skin_pixels_rgb",
-    # feature_extractor
     "compute_features_from_skin_pixels",
     "FEATURE_NAMES",
-    # image_processor
     "process_single_image",
-    # augmentation
     "apply_brightness_shift",
     "generate_brightness_augmented_variants",
-    # dataset_pipeline
     "discover_training_zone_images",
     "extract_features_with_augmentation",
     "pivot_zones_into_patient_row",
