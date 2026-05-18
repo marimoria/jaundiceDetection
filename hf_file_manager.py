@@ -9,7 +9,7 @@ from huggingface_hub.errors import RepositoryNotFoundError
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_NEO = Path(os.getenv("DATA_NEO_DIR", str(BASE_DIR / "__data__" / "neo")))
+DEFAULT_NEO = Path(str(BASE_DIR / "__data__" / "neo"))
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 HF_REPO_TYPE = "dataset"
@@ -30,9 +30,7 @@ def setup_session():
     global HF_REPO_ID, DATA_DIR
     separator("SETUP SESSION")
 
-    print(
-        "  Enter HuggingFace Repository ID (e.g. Gamma-Fest-2026/jaundice-neojaundice)"
-    )
+    print("Enter HuggingFace Repository ID")
     repo = input("  Repo ID: ").strip()
     HF_REPO_ID = repo if repo else "Gamma-Fest-2026/jaundice-neojaundice"
 
