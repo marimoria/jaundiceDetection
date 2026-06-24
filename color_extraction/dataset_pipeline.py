@@ -21,7 +21,7 @@ CSV schema expected from the NeoJaundice dataset:
   weight, blood(mg/dL), jaundice_label
 
 Output CSV columns:
-  42 color features (14 × 3 zones, prefixed zone1_ / zone2_ / zone3_)
+  42 color features (14 x 3 zones, prefixed zone1_ / zone2_ / zone3_)
   + gestational_age, postnatal_age_days, weight
   + blood_mg_dl       (TSB — regression label)
   + jaundice_label    (binary — clinician-assigned ground truth)

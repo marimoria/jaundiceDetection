@@ -55,7 +55,7 @@ from sklearn.model_selection import train_test_split
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
-DATA_PATH = "__data__/neo/out/training.csv"
+DATA_PATH = "__data__/neo/out/training_fix.csv"
 MODELS_DIR = "__models__"
 DETECT_LABEL = "jaundice_label"
 TSB_COL = "blood_mg_dl"
