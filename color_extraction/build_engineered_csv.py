@@ -1,6 +1,6 @@
 """
 build_engineered_csv.py
-Reads the existing training_fix.csv and adds 11 engineered features,
+Reads the existing training_engineered.csv and adds 11 engineered features,
 producing training_engineered.csv in the same directory.
 
 Does NOT touch images or re-run the extraction pipeline.
@@ -24,7 +24,7 @@ Output column order:
 
 Usage:
   python build_engineered_csv.py
-  python build_engineered_csv.py --input path/to/training_fix.csv --output path/to/out.csv
+  python build_engineered_csv.py --input path/to/training_engineered.csv --output path/to/out.csv
 """
 
 import argparse
@@ -37,7 +37,7 @@ import pandas as pd
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-8s  %(message)s")
 log = logging.getLogger("engineer")
 
-DEFAULT_INPUT  = "__data__/neo/out/training_fix.csv"
+DEFAULT_INPUT  = "__data__/neo/out/training_engineered.csv"
 DEFAULT_OUTPUT = "__data__/neo/out/training_engineered.csv"
 
 ZONES         = ["zone1", "zone2", "zone3"]
@@ -164,8 +164,8 @@ def main(input_path: str, output_path: str) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Add engineered features to training_fix.csv")
-    parser.add_argument("--input",  default=DEFAULT_INPUT,  help="Path to training_fix.csv")
+    parser = argparse.ArgumentParser(description="Add engineered features to training_engineered.csv")
+    parser.add_argument("--input",  default=DEFAULT_INPUT,  help="Path to training_engineered.csv")
     parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Path for output CSV")
     args = parser.parse_args()
     main(args.input, args.output)

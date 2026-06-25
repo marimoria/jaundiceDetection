@@ -1,7 +1,7 @@
 """
 Normality Test (Kolmogorov-Smirnov)
 =====================================================================================
-Dataset        : __data__/neo/out/training_fix.csv (Updated for GitHub portability)
+Dataset        : __data__/neo/out/training_engineered.csv (Updated for GitHub portability)
 Response Var   : TSB -> 'blood_mg_dl' column
 Features Tested: 45 features (Skin color zones RGB/YCrCb/HSL/Lab + basic clinical data)
 """
@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 # 1. LOAD DATA (Updated with Relative Path for GitHub)
 # ---------------------------------------------------------------
 # Using relative path so anyone cloning this repository can run it immediately
-df = pd.read_csv("__data__/neo/out/training_fix.csv")
+df = pd.read_csv("__data__/neo/out/training_engineered.csv")
 
 RESPONSE = "blood_mg_dl"          # TSB (Total Serum Bilirubin)
 EXCLUDE = ["patient_id", "is_augmented", "jaundice_label", RESPONSE]

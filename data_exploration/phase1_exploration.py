@@ -44,7 +44,7 @@ log = logging.getLogger("phase1")
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
-DATA_PATH = "__data__/neo/out/training_fix.csv"
+DATA_PATH = "__data__/neo/out/training_engineered.csv"
 OUT_DIR   = "__plots__/explore"
 CSV_DIR   = os.path.join(OUT_DIR, "csv")
 PNG_DIR   = os.path.join(OUT_DIR, "png")
