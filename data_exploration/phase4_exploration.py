@@ -47,7 +47,8 @@ log = logging.getLogger("phase4")
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
-DATA_PATH = "__data__/neo/out/training_engineered.csv"
+DATA_PATH    = "__data__/neo/out/training_fix.csv"
+OUT_CSV_PATH = "__data__/neo/out/training_engineered.csv"
 OUT_DIR   = "__plots__/explore"
 CSV_DIR   = os.path.join(OUT_DIR, "csv")
 PNG_DIR   = os.path.join(OUT_DIR, "png")
@@ -259,7 +260,59 @@ for zone in ZONES:
         })
 
 
-# Save CSVs
+# Append all engineered columns to df_all and save training_engineered.csv
+# This bakes every new feature into the dataset so downstream scripts
+# (train_models.py, tune_regression.py, evaluate.py) can read it directly
+# without recomputing at runtime.
+
+log.info("Saving training_engineered.csv")
+
+eng_all = df_all.copy()
+
+# 1. Cross-zone means (Lab_b, Cb, H, B, S)
+for ch in ["Lab_b_mean", "Cb_mean", "H_mean", "B_mean", "S_mean"]:
+    cols = [f"{z}_{ch}" for z in ZONES if f"{z}_{ch}" in eng_all.columns]
+    if len(cols) >= 2:
+        eng_all[f"mean_zones_{ch}"] = eng_all[cols].mean(axis=1)
+
+# 2. R/B ratio per zone
+for zone in ZONES:
+    r_col, b_col = f"{zone}_R_mean", f"{zone}_B_mean"
+    if r_col in eng_all.columns and b_col in eng_all.columns:
+        eng_all[f"{zone}_R_div_B"] = eng_all[r_col] / eng_all[b_col].replace(0, np.nan)
+
+# 3. G-B difference per zone
+for zone in ZONES:
+    g_col, b_col = f"{zone}_G_mean", f"{zone}_B_mean"
+    if g_col in eng_all.columns and b_col in eng_all.columns:
+        eng_all[f"{zone}_G_minus_B"] = eng_all[g_col] - eng_all[b_col]
+
+# 4. Cross-zone gradients (zone3 - zone1)
+for ch in ["Lab_b_mean", "Cb_mean", "H_mean"]:
+    z3_col, z1_col = f"zone3_{ch}", f"zone1_{ch}"
+    if z3_col in eng_all.columns and z1_col in eng_all.columns:
+        eng_all[f"grad_z3z1_{ch}"] = eng_all[z3_col] - eng_all[z1_col]
+
+# 5. Log postnatal age
+if "postnatal_age_days" in eng_all.columns:
+    eng_all["log1p_postnatal_age_days"] = np.log1p(eng_all["postnatal_age_days"])
+
+# 6. ITA per zone
+for zone in ZONES:
+    l_col, b_col = f"{zone}_Lab_L_mean", f"{zone}_Lab_b_mean"
+    if l_col in eng_all.columns and b_col in eng_all.columns:
+        denom = eng_all[b_col].copy()
+        eng_all[f"{zone}_ITA"] = np.where(
+            denom != 0,
+            np.degrees(np.arctan((eng_all[l_col] - 50) / denom)),
+            np.nan,
+        )
+
+eng_all.to_csv(OUT_CSV_PATH, index=False)
+log.info("  Saved %s  (%d rows, %d cols)", OUT_CSV_PATH, len(eng_all), len(eng_all.columns))
+
+
+# Save analysis CSVs
 
 eng_df  = pd.DataFrame(eng_rows).sort_values("abs_spearman", ascending=False)
 comp_df = pd.DataFrame(comp_rows)
