@@ -26,7 +26,8 @@ from plot_style import apply_academic_style
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
-DATA_PATH = "__data__/neo/out/training_engineered.csv"
+DATA_PATH = "__data__/neo/out/training_fix.csv"
+OUT_DATA_PATH = "__data__/neo/out/training_cleaned.csv"
 OUT_DIR = "__plots__/explore"
 CSV_DIR = os.path.join(OUT_DIR, "csv")
 PNG_DIR = os.path.join(OUT_DIR, "png")
@@ -50,7 +51,8 @@ null_cols_before = df_all.isnull().sum()
 null_cols_before = null_cols_before[null_cols_before > 0]
 if len(null_cols_before):
     df_all = df_all.dropna().reset_index(drop=True)
-    df_all.to_csv(DATA_PATH, index=False)
+
+df_all.to_csv(OUT_DATA_PATH, index=False)
 
 orig = df_all[df_all["is_augmented"] == False].copy()
 
@@ -157,3 +159,4 @@ plt.close()
 
 print(f"phase1 done: n={len(tsb)}, mean={target_stats['mean']}, skew={target_stats['skewness']}")
 print(f"log-transform candidates: {flagged}")
+print(f"saved cleaned data to {OUT_DATA_PATH}")

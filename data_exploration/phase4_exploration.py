@@ -47,7 +47,7 @@ log = logging.getLogger("phase4")
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
-DATA_PATH    = "__data__/neo/out/training_fix.csv"
+DATA_PATH    = "__data__/neo/out/training_cleaned.csv"
 OUT_CSV_PATH = "__data__/neo/out/training_engineered.csv"
 OUT_DIR   = "__plots__/explore"
 CSV_DIR   = os.path.join(OUT_DIR, "csv")
@@ -261,9 +261,7 @@ for zone in ZONES:
 
 
 # Append all engineered columns to df_all and save training_engineered.csv
-# This bakes every new feature into the dataset so downstream scripts
-# (train_models.py, tune_regression.py, evaluate.py) can read it directly
-# without recomputing at runtime.
+# This bakes every new feature into the dataset so downstream scripts can read it directly
 
 log.info("Saving training_engineered.csv")
 

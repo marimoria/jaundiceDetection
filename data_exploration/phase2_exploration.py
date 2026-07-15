@@ -51,7 +51,7 @@ def test_feature_normality_ks(series: pd.Series) -> tuple[float, float]:
     stat, p = lilliefors(x, dist="norm")
     return float(stat), float(p)
 
-DATA_PATH = "__data__/neo/out/training_engineered.csv"
+DATA_PATH = "__data__/neo/out/training_cleaned.csv"
 OUT_DIR = "__plots__/explore"
 CSV_DIR = os.path.join(OUT_DIR, "csv")
 PNG_DIR = os.path.join(OUT_DIR, "png")

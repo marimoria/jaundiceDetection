@@ -15,14 +15,11 @@ Outputs:
       06_layer_c_crosszone_comparison.csv
     png/
       04_layer_a_spearman_bar.png
-      04_layer_a_kde_top5.png
+      04_layer_a_kde_top3.png
       05_layer_b_heatmap_zone1.png
       05_layer_b_heatmap_zone2.png
       05_layer_b_heatmap_zone3.png
       06_layer_c_crosszone.png
-
-Usage:
-  python phase3_correlation.py
 """
 
 import logging
@@ -45,7 +42,7 @@ log = logging.getLogger("phase3")
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
-DATA_PATH = "__data__/neo/out/training_engineered.csv"
+DATA_PATH = "__data__/neo/out/training_cleaned.csv"
 OUT_DIR   = "__plots__/explore"
 CSV_DIR   = os.path.join(OUT_DIR, "csv")
 PNG_DIR   = os.path.join(OUT_DIR, "png")
@@ -107,9 +104,9 @@ for feat in ALL_FEATURES:
 layer_a = pd.DataFrame(rows_a).sort_values("abs_spearman", ascending=False)
 layer_a.to_csv(os.path.join(CSV_DIR, "04_layer_a_feature_target_corr.csv"), index=False)
 
-top5    = layer_a.head(5)["feature"].tolist()
+top3    = layer_a.head(3)["feature"].tolist()
 bottom5 = layer_a[layer_a["near_zero"]]["feature"].tolist()
-log.info("  Top-5 by |Spearman|: %s", top5)
+log.info("  Top-3 by |Spearman|: %s", top3)
 log.info("  Near-zero features (|r|<0.10): %s", bottom5)
 
 fig, ax = plt.subplots(figsize=(14, 10))
@@ -149,9 +146,9 @@ plt.close()
 log.info("  Saved 04_layer_a_spearman_bar.png")
 
 
-# Layer A (cont.): KDE distribution by class for top-5 features
+# Layer A (cont.): KDE distribution by class for top-3 features
 
-log.info("Layer A cont.: KDE separation for top-5 features")
+log.info("Layer A cont.: KDE separation for top-3 features")
 
 from scipy.stats import gaussian_kde, ks_2samp
 
@@ -159,7 +156,7 @@ kde_rows = []
 fig, axes = plt.subplots(2, 3, figsize=(15, 9))
 axes_flat = axes.flatten()
 
-for i, feat in enumerate(top5):
+for i, feat in enumerate(top3):
     ax = axes_flat[i]
     sub = orig[[feat, "jaundice_label"]].dropna()
     g0 = sub.loc[sub["jaundice_label"] == 0, feat].to_numpy()
@@ -198,7 +195,7 @@ for i, feat in enumerate(top5):
     if i % 3 == 0:
         ax.set_ylabel("Density")
 
-for j in range(len(top5), len(axes_flat)):
+for j in range(len(top3), len(axes_flat)):
     fig.delaxes(axes_flat[j])
 
 legend_patches_kde = [
@@ -207,17 +204,17 @@ legend_patches_kde = [
 ]
 fig.legend(handles=legend_patches_kde, loc="upper right", ncol=1)
 fig.suptitle(
-    "Layer A (cont.): KDE Distribution by Class — Top-5 Features\n"
+    "Layer A (cont.): KDE Distribution by Class — Top-3 Features\n"
     "(lower overlap coefficient = clearer class separation)",
     fontsize=11,
 )
 plt.tight_layout()
-plt.savefig(os.path.join(PNG_DIR, "04_layer_a_kde_top5.png"))
+plt.savefig(os.path.join(PNG_DIR, "04_layer_a_kde_top3.png"))
 plt.close()
 
 kde_df = pd.DataFrame(kde_rows).sort_values("overlap_coefficient")
 kde_df.to_csv(os.path.join(CSV_DIR, "04_layer_a_kde_separation.csv"), index=False)
-log.info("  Saved 04_layer_a_kde_top5.png")
+log.info("  Saved 04_layer_a_kde_top3.png")
 log.info(
     "  Overlap coefficients: %s",
     kde_df.set_index("feature")["overlap_coefficient"].round(3).to_dict(),
@@ -280,10 +277,10 @@ log.info("  Redundant pairs (|r|≥%.2f): %d", REDUNDANCY_THRESHOLD, len(redunda
 
 # Layer C: cross-zone comparison (Kramer's rule)
 
-log.info("Layer C: cross-zone comparison of top-5 features")
+log.info("Layer C: cross-zone comparison of top-3 features")
 
 KEY_FEATURES = []
-for feat in top5:
+for feat in top3:
     if feat in ZONE_FEATURES:
         suffix = feat.split("_", 1)[1]
         if suffix not in KEY_FEATURES:
@@ -350,7 +347,7 @@ for j in range(len(KEY_FEATURES), len(axes_flat)):
 from matplotlib.patches import Patch as _Patch
 legend_patches_c = [_Patch(color=zone_colors[z], label=z) for z in ZONES]
 fig.legend(handles=legend_patches_c, loc="upper right", ncol=1)
-fig.suptitle("Layer C: Cross-zone Spearman r for Top-5 Features vs blood_mg_dl\n"
+fig.suptitle("Layer C: Cross-zone Spearman r for Top-3 Features vs blood_mg_dl\n"
              "(zone3 > zone1 confirms Kramer's cephalocaudal rule)", fontsize=11)
 plt.tight_layout()
 plt.savefig(os.path.join(PNG_DIR, "06_layer_c_crosszone.png"))
