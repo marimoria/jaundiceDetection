@@ -16,19 +16,32 @@ warnings.filterwarnings("ignore")
 # 1. LOAD DATA (Updated with Relative Path for GitHub)
 # ---------------------------------------------------------------
 # Using relative path so anyone cloning this repository can run it immediately
-df = pd.read_csv("__data__/neo/out/training_cleaned.csv")
+df = pd.read_csv("__data__/neo/out/training_engineered.csv")
 
 RESPONSE = "blood_mg_dl"          # TSB (Total Serum Bilirubin)
 EXCLUDE = ["patient_id", "is_augmented", "jaundice_label", RESPONSE]
-FEATURES = [c for c in df.columns if c not in EXCLUDE]
+
+# Only use original 45 features (no engineered features)
+ENGINEERED_PREFIXES = ("mean_zones_", "grad_z3z1_", "log1p_")
+ENGINEERED_SUFFIXES = ("_R_div_B", "_G_minus_B", "_ITA")
+
+def is_engineered(col):
+    return (
+        any(col.startswith(p) for p in ENGINEERED_PREFIXES) or
+        any(col.endswith(s) for s in ENGINEERED_SUFFIXES)
+    )
+
+FEATURES = [c for c in df.columns if c not in EXCLUDE and not is_engineered(c)]
 
 print(f"Number of features being tested: {len(FEATURES)}")
-assert len(FEATURES) == 45, "Feature count is not 45, please check the columns!"
+assert len(FEATURES) == 45, f"Feature count is {len(FEATURES)}, not 45. Check columns: {FEATURES}"
 
-# Handle missing values (postnatal_age_days only, 8 rows) -> drop those rows
-# to prevent normality test bias caused by imputation
-df_clean = df.dropna(subset=FEATURES + [RESPONSE]).copy()
-print(f"Rows used after dropping NA: {df_clean.shape[0]} out of {df.shape[0]}")
+# Only run on original (non-augmented) rows
+df_orig = df[df["is_augmented"] == False].copy()
+
+# Handle missing values -> drop rows with nulls in features or response
+df_clean = df_orig.dropna(subset=FEATURES + [RESPONSE]).copy()
+print(f"Rows used after dropping NA: {df_clean.shape[0]} out of {df_orig.shape[0]}")
 
 
 # ---------------------------------------------------------------
@@ -67,19 +80,40 @@ print(f"\n=== KOLMOGOROV-SMIRNOV TEST RESULTS (alpha=0.05) ===")
 print(f"Features with NORMAL distribution    : {n_normal} / {n_total}")
 print(f"Features with NON-NORMAL distribution: {n_total - n_normal} / {n_total}")
 
-# Save feature results using a relative path
-res_df.to_csv("__plots__/explore/csv/ks_test_results.csv", index=False)
-print("\nFull table saved -> ks_test_results.csv")
-print(res_df.to_string(index=False))
-
 
 # ---------------------------------------------------------------
 # 3. NORMALITY TEST FOR RESPONSE VARIABLE (blood_mg_dl)
 # ---------------------------------------------------------------
-x = df["blood_mg_dl"].dropna().values
-stat, p = stats.kstest(x, 'norm', args=(x.mean(), x.std(ddof=1)))  # type: ignore
+x_tsb = df_clean[RESPONSE].dropna().values
+stat_tsb, p_tsb = stats.kstest(x_tsb, 'norm', args=(x_tsb.mean(), x_tsb.std(ddof=1))) # type: ignore
 
-print("\n=== Normality for blood_mg_dl ===")
-print(f"KS Statistic : {stat:.4f}")
-print(f"p-value      : {p:.2e}")
-print(f"Conclusion   : {'Normal' if p > 0.05 else 'Non-Normal'}")
+tsb_row = {
+    "feature": RESPONSE,
+    "n": len(x_tsb),
+    "mean": round(float(x_tsb.mean()), 4), # type: ignore
+    "std": round(float(x_tsb.std(ddof=1)), 4), # type: ignore
+    "skewness": round(float(stats.skew(x_tsb)), 4),
+    "excess_kurtosis": round(float(stats.kurtosis(x_tsb)), 4),
+    "KS_statistic": round(float(stat_tsb), 6),
+    "KS_pvalue": round(float(p_tsb), 6),
+    "normal_alpha_0.05": "Normal" if p_tsb > 0.05 else "Non-Normal",
+}
+
+print(f"\n=== Normality for {RESPONSE} ===")
+print(f"KS Statistic : {stat_tsb:.4f}")
+print(f"p-value      : {p_tsb:.2e}")
+print(f"Conclusion   : {tsb_row['normal_alpha_0.05']}")
+
+
+# ---------------------------------------------------------------
+# 4. SAVE COMBINED CSV (features + TSB response)
+# ---------------------------------------------------------------
+tsb_df = pd.DataFrame([tsb_row])
+combined_df = pd.concat([res_df, tsb_df], ignore_index=True)
+
+import os
+os.makedirs("__plots__/explore/csv", exist_ok=True)
+combined_df.to_csv("__plots__/explore/csv/ks_test_results.csv", index=False)
+print("\nFull table saved -> __plots__/explore/csv/ks_test_results.csv")
+print(f"Total rows in CSV: {len(combined_df)} (45 features + 1 response variable)")
+print(res_df.to_string(index=False))
