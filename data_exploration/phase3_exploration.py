@@ -1,10 +1,8 @@
 """
-phase3_correlation.py  Phase 3: Three-Layer Correlation Analysis
-
-Layers:
-  A. Every feature vs blood_mg_dl (Spearman + Pearson)
-  B. Feature-vs-feature redundancy within each zone (14x14 matrix)
-  C. Cross-zone comparison of key features (Kramer's rule test)
+Correlation Analysis:
+  1. Every feature vs blood_mg_dl (Spearman)
+  2. Feature-vs-feature redundancy within each zone (14x14 matrix)
+  3. Cross-zone comparison of top-5 features (Kramer's rule test)
 
 All analysis runs exclusively on original (non-augmented) rows.
 
@@ -12,10 +10,12 @@ Outputs:
   __plots__/explore/
     csv/
       04_layer_a_feature_target_corr.csv
+      04_layer_a_kde_separation.csv
       05_layer_b_intrazone_redundancy.csv
       06_layer_c_crosszone_comparison.csv
     png/
       04_layer_a_spearman_bar.png
+      04_layer_a_kde_top5.png
       05_layer_b_heatmap_zone1.png
       05_layer_b_heatmap_zone2.png
       05_layer_b_heatmap_zone3.png
@@ -59,7 +59,6 @@ GRAY    = "#636e72"
 ORANGE  = "#e17055"
 
 REDUNDANCY_THRESHOLD = 0.90
-KEY_FEATURES = ["Lab_b_mean", "Cb_mean", "H_mean"]
 
 os.makedirs(CSV_DIR, exist_ok=True)
 os.makedirs(PNG_DIR, exist_ok=True)
@@ -81,31 +80,27 @@ ZONE_FEATURE_NAMES = sorted({
 log.info("Loaded %d original rows, %d features", len(orig), len(ALL_FEATURES))
 
 
-def spearman_pearson(series_a, series_b):
+def spearman(series_a, series_b):
     mask = series_a.notna() & series_b.notna()
     a, b = series_a[mask], series_b[mask]
     rsp, psp = stats.spearmanr(a, b)
-    rpe, ppe = stats.pearsonr(a, b)
-    return float(rsp), float(psp), float(rpe), float(ppe) # type: ignore
+    return float(rsp), float(psp) # type: ignore
 
 
-# Layer A: feature -> target
+# Feature vs target
 
-log.info("Layer A: feature vs target")
+log.info("Layer A: Feature vs target")
 
 rows_a = []
 for feat in ALL_FEATURES:
     if feat not in orig.columns:
         continue
-    rsp, psp, rpe, ppe = spearman_pearson(orig[feat], orig[TARGET])
+    rsp, psp = spearman(orig[feat], orig[TARGET])
     rows_a.append({
         "feature":        feat,
         "spearman_r":     round(rsp, 4),
         "spearman_p":     round(psp, 6),
-        "pearson_r":      round(rpe, 4),
-        "pearson_p":      round(ppe, 6),
         "abs_spearman":   round(abs(rsp), 4),
-        "divergence":     round(abs(abs(rsp) - abs(rpe)), 4),
         "near_zero":      abs(rsp) < 0.10,
     })
 
@@ -117,7 +112,7 @@ bottom5 = layer_a[layer_a["near_zero"]]["feature"].tolist()
 log.info("  Top-5 by |Spearman|: %s", top5)
 log.info("  Near-zero features (|r|<0.10): %s", bottom5)
 
-fig, ax = plt.subplots(figsize=(14, 8))
+fig, ax = plt.subplots(figsize=(14, 10))
 colors = []
 for _, row in layer_a.iterrows():
     if abs(row["spearman_r"]) < 0.10:
@@ -154,7 +149,82 @@ plt.close()
 log.info("  Saved 04_layer_a_spearman_bar.png")
 
 
-# Layer B: intra-zone redundancy heatmaps
+# Layer A (cont.): KDE distribution by class for top-5 features
+
+log.info("Layer A cont.: KDE separation for top-5 features")
+
+from scipy.stats import gaussian_kde, ks_2samp
+
+kde_rows = []
+fig, axes = plt.subplots(2, 3, figsize=(15, 9))
+axes_flat = axes.flatten()
+
+for i, feat in enumerate(top5):
+    ax = axes_flat[i]
+    sub = orig[[feat, "jaundice_label"]].dropna()
+    g0 = sub.loc[sub["jaundice_label"] == 0, feat].to_numpy()
+    g1 = sub.loc[sub["jaundice_label"] == 1, feat].to_numpy()
+
+    x_min = min(g0.min(), g1.min())
+    x_max = max(g0.max(), g1.max())
+    x_grid = np.linspace(x_min, x_max, 400)
+
+    kde0 = gaussian_kde(g0)
+    kde1 = gaussian_kde(g1)
+    y0 = kde0(x_grid)
+    y1 = kde1(x_grid)
+
+    overlap = float(np.trapezoid(np.minimum(y0, y1), x_grid))
+    ks_stat, ks_p = ks_2samp(g0, g1)
+
+    kde_rows.append({
+        "feature":             feat,
+        "normal_mean":         round(float(g0.mean()), 4),
+        "jaundice_mean":       round(float(g1.mean()), 4),
+        "overlap_coefficient": round(overlap, 4),
+        "ks_2samp_stat":       round(float(ks_stat), 4),
+        "ks_2samp_p":          round(float(ks_p), 6),
+    })
+
+    ax.fill_between(x_grid, y0, color=ACCENT, alpha=0.45)
+    ax.fill_between(x_grid, y1, color=RED, alpha=0.45)
+    ax.plot(x_grid, y0, color=ACCENT, linewidth=1.8)
+    ax.plot(x_grid, y1, color=RED, linewidth=1.8)
+    ax.text(
+        0.97, 0.95, f"overlap={overlap:.2f}\nKS D={ks_stat:.2f}",
+        transform=ax.transAxes, ha="right", va="top", fontsize=9,
+    )
+    ax.set_title(feat, fontsize=10)
+    if i % 3 == 0:
+        ax.set_ylabel("Density")
+
+for j in range(len(top5), len(axes_flat)):
+    fig.delaxes(axes_flat[j])
+
+legend_patches_kde = [
+    Patch(color=ACCENT, label="Normal"),
+    Patch(color=RED,    label="Jaundiced"),
+]
+fig.legend(handles=legend_patches_kde, loc="upper right", ncol=1)
+fig.suptitle(
+    "Layer A (cont.): KDE Distribution by Class — Top-5 Features\n"
+    "(lower overlap coefficient = clearer class separation)",
+    fontsize=11,
+)
+plt.tight_layout()
+plt.savefig(os.path.join(PNG_DIR, "04_layer_a_kde_top5.png"))
+plt.close()
+
+kde_df = pd.DataFrame(kde_rows).sort_values("overlap_coefficient")
+kde_df.to_csv(os.path.join(CSV_DIR, "04_layer_a_kde_separation.csv"), index=False)
+log.info("  Saved 04_layer_a_kde_top5.png")
+log.info(
+    "  Overlap coefficients: %s",
+    kde_df.set_index("feature")["overlap_coefficient"].round(3).to_dict(),
+)
+
+
+# Intra-zone redundancy heatmaps
 
 log.info("Layer B: intra-zone feature redundancy")
 
@@ -210,7 +280,14 @@ log.info("  Redundant pairs (|r|≥%.2f): %d", REDUNDANCY_THRESHOLD, len(redunda
 
 # Layer C: cross-zone comparison (Kramer's rule)
 
-log.info("Layer C: cross-zone comparison of key features")
+log.info("Layer C: cross-zone comparison of top-5 features")
+
+KEY_FEATURES = []
+for feat in top5:
+    if feat in ZONE_FEATURES:
+        suffix = feat.split("_", 1)[1]
+        if suffix not in KEY_FEATURES:
+            KEY_FEATURES.append(suffix)
 
 crosszone_rows = []
 for feat_suffix in KEY_FEATURES:
@@ -218,7 +295,7 @@ for feat_suffix in KEY_FEATURES:
         col = f"{zone}_{feat_suffix}"
         if col not in orig.columns:
             continue
-        rsp, psp, _, _ = spearman_pearson(orig[col], orig[TARGET])
+        rsp, psp = spearman(orig[col], orig[TARGET])
         crosszone_rows.append({
             "feature_type": feat_suffix,
             "zone":         zone,
@@ -240,10 +317,12 @@ for feat_suffix in KEY_FEATURES:
              vals.get("zone2", float("nan")),
              vals.get("zone3", float("nan")))
 
-fig, axes = plt.subplots(1, len(KEY_FEATURES), figsize=(14, 5), sharey=False)
+fig, axes = plt.subplots(2, 3, figsize=(15, 9), sharey=False)
+axes_flat = axes.flatten()
 zone_colors = {"zone1": ACCENT, "zone2": GREEN, "zone3": RED}
 
-for ax, feat_suffix in zip(axes, KEY_FEATURES):
+for i, feat_suffix in enumerate(KEY_FEATURES):
+    ax = axes_flat[i]
     sub = crosszone_df[crosszone_df["feature_type"] == feat_suffix].copy()
     sub = sub.set_index("zone").reindex(ZONES).reset_index()
     bars = ax.bar(
@@ -257,18 +336,21 @@ for ax, feat_suffix in zip(axes, KEY_FEATURES):
                 f"{val:.3f}", ha="center", va="bottom", fontsize=9)
     ax.axhline(0, color="#2d3436", linewidth=0.8)
     ax.set_title(feat_suffix, fontsize=10)
-    ax.set_xlabel("Zone")
-    ax.set_ylabel("Spearman r" if ax is axes[0] else "")
+    if i % 3 == 0:
+        ax.set_ylabel("Spearman r")
     ax.set_ylim(
         min(sub["spearman_r"].min() - 0.1, -0.05),
         max(sub["spearman_r"].max() + 0.12,  0.05),
     )
     ax.xaxis.set_tick_params(labelsize=9)
 
+for j in range(len(KEY_FEATURES), len(axes_flat)):
+    fig.delaxes(axes_flat[j])
+
 from matplotlib.patches import Patch as _Patch
 legend_patches_c = [_Patch(color=zone_colors[z], label=z) for z in ZONES]
 fig.legend(handles=legend_patches_c, loc="upper right", ncol=1)
-fig.suptitle("Layer C: Cross-zone Spearman r for Key Features vs blood_mg_dl\n"
+fig.suptitle("Layer C: Cross-zone Spearman r for Top-5 Features vs blood_mg_dl\n"
              "(zone3 > zone1 confirms Kramer's cephalocaudal rule)", fontsize=11)
 plt.tight_layout()
 plt.savefig(os.path.join(PNG_DIR, "06_layer_c_crosszone.png"))
